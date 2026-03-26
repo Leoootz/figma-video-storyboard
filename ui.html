@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0e0e0f; --surface: #1a1a1c; --border: #2e2e32;
+    --accent: #5a8aff; --accent-dim: #4070e0;
+    --text: #f0f0ee; --muted: #6b6b72; --danger: #ff4f4f; --radius: 1px;
+  }
+  body {
+    font-family: Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; padding: 20px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  h1 { font-size: 18px; font-weight: 400; color: var(--text); letter-spacing: 0.1px; }
+  .subtitle { font-size: 9px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px; }
+
+  #dropzone {
+    border: 1.5px dashed var(--border); border-radius: var(--radius);
+    padding: 28px 20px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative; background: var(--surface);
+  }
+  #dropzone.drag-over { border-color: var(--accent); background: rgba(90,138,255,0.06); }
+  #dropzone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .drop-icon { font-size: 24px; margin-bottom: 8px; display: block; }
+  .drop-label { font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .drop-label span { color: var(--accent); font-weight: 600; }
+
+  #video-info { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; font-size: 11px; gap: 8px; flex-direction: column; }
+  #video-info.visible { display: flex; }
+  .info-row { display: flex; justify-content: space-between; align-items: center; }
+  .info-key { color: var(--muted); }
+  .info-val { color: var(--text); font-weight: 600; }
+  .info-val.accent { color: var(--accent); }
+
+  #interval-wrap { display:flex; gap:8px; align-items:center; font-size:11px; margin-top:8px; }
+  #interval-wrap > label {
+    color: var(--muted);
+    font-weight: 600;
+    min-width: 52px;
+  }
+  .interval-options { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; }
+  .interval-option input { display: none; }
+  .interval-option span {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 24px;
+    padding: 0 8px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s, background 0.2s;
+  }
+  .interval-option input:checked + span {
+    border-color: var(--accent);
+    color: #fff;
+    background: rgba(90,138,255,0.2);
+  }
+
+  #progress-wrap { display: none; flex-direction: column; gap: 8px; }
+  #progress-wrap.visible { display: flex; }
+  .progress-label { font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+  .progress-bar-bg { height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; transition: width 0.1s; }
+
+  #preview-strip { display: none; gap: 5px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: #3a3a40 transparent; }
+  #preview-strip::-webkit-scrollbar { height: 3px; }
+  #preview-strip::-webkit-scrollbar-track { background: transparent; }
+  #preview-strip::-webkit-scrollbar-thumb { background: #3a3a40; border-radius: 2px; }
+  #preview-strip.visible { display: flex; }
+  #preview-strip img { width: 55px; height: 98px; object-fit: cover; border-radius: 0; border: 1px solid var(--border); flex-shrink: 0; }
+
+  .btn-row { display: flex; gap: 8px; margin-top: auto; }
+  button {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 11px; font-weight: 700; border: none; border-radius: var(--radius);
+    padding: 10px 16px; cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+    letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  button:active { transform: scale(0.97); }
+  button:disabled { opacity: 0.35; cursor: not-allowed; }
+  #btn-run { flex: 1; background: var(--accent); color: #fff; }
+  #btn-run:hover:not(:disabled) { background: var(--accent-dim); }
+  #btn-reset { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
+  #btn-reset:hover { color: var(--text); border-color: var(--muted); }
+
+  #status { font-size: 10px; color: var(--muted); text-align: center; min-height: 14px; }
+  #status.ok { color: var(--accent); }
+  #status.err { color: var(--danger); }
+
+  .credit {
+    font-size: 9px; color: #5d5d5d; text-align: center;
+    margin-top: 4px; letter-spacing: 0.04em;
+  }
+  .credit a { color: #3a3a3a; text-decoration: none; }
+  .credit a:hover { color: var(--muted); }
+
+  #canvas { display: none; }
+  #video-el { display: none; }
+</style>
+</head>
+<body>
+
+<div>
+  <h1>Storyboard Generator</h1>
+  <div class="subtitle">video to frames in figma</div>
+</div>
+
+<div id="dropzone">
+  <input type="file" id="file-input" accept="video/*" />
+  <span class="drop-icon">🎬</span>
+  <div class="drop-label">
+    <span>Drop a video</span> or click<br/>
+    MP4, MOV, WebM - every X seconds
+  </div>
+</div>
+
+<div id="video-info">
+  <div class="info-row"><span class="info-key">file</span><span class="info-val" id="info-name">—</span></div>
+  <div class="info-row"><span class="info-key">duration</span><span class="info-val" id="info-dur">—</span></div>
+  <div class="info-row"><span class="info-key">frames to extract</span><span class="info-val accent" id="info-count">—</span></div>
+</div>
+
+<div id="interval-wrap">
+  <label>Seconds:</label>
+  <div class="interval-options" id="interval-options">
+    <label class="interval-option"><input type="radio" name="interval" value="0.5" /><span>0.5</span></label>
+    <label class="interval-option"><input type="radio" name="interval" value="1" /><span>1</span></label>
+    <label class="interval-option"><input type="radio" name="interval" value="1.5" checked /><span>1.5</span></label>
+    <label class="interval-option"><input type="radio" name="interval" value="2" /><span>2</span></label>
+    <label class="interval-option"><input type="radio" name="interval" value="5" /><span>5</span></label>
+    <label class="interval-option"><input type="radio" name="interval" value="10" /><span>10</span></label>
+  </div>
+</div>
+
+<div id="progress-wrap">
+  <div class="progress-label">
+    <span id="progress-lbl">Extracting frames...</span>
+    <span id="progress-text">0 / 0</span>
+  </div>
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progress-bar"></div></div>
+</div>
+
+<div id="preview-strip"></div>
+<div id="status"></div>
+
+<div class="btn-row">
+  <button id="btn-reset">↺ Reset</button>
+  <button id="btn-run" disabled>▶ Extract frames</button>
+</div>
+
+<div class="credit">plugin by <a href="https://asierleoz.com" target="_blank">asierleoz.com</a></div>
+
+<canvas id="canvas"></canvas>
+<video id="video-el" muted playsinline></video>
+
+<script>
+const dropzone     = document.getElementById('dropzone');
+const fileInput    = document.getElementById('file-input');
+const videoInfo    = document.getElementById('video-info');
+const infoName     = document.getElementById('info-name');
+const infoDur      = document.getElementById('info-dur');
+const infoCount    = document.getElementById('info-count');
+const intervalOptions = document.getElementById('interval-options');
+const progressWrap = document.getElementById('progress-wrap');
+const progressBar  = document.getElementById('progress-bar');
+const progressTxt  = document.getElementById('progress-text');
+const progressLbl  = document.getElementById('progress-lbl');
+const previewStrip = document.getElementById('preview-strip');
+const statusEl     = document.getElementById('status');
+const btnRun       = document.getElementById('btn-run');
+const btnReset     = document.getElementById('btn-reset');
+const canvas       = document.getElementById('canvas');
+const videoEl      = document.getElementById('video-el');
+const ctx          = canvas.getContext('2d');
+
+let state = 'idle';
+let extractedFrames = [];
+let selectedVideoFile = null;
+let isProcessing = false;
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('video/')) loadVideo(file);
+  else setStatus('Only video files are supported', 'err');
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadVideo(fileInput.files[0]); });
+intervalOptions.addEventListener('change', async () => {
+  refreshVideoInfo();
+  // If frames are already extracted, changing seconds re-renders them immediately.
+  if (state === 'extracted' && !isProcessing) await doExtract();
+});
+
+function loadVideo(file) {
+  selectedVideoFile = file;
+  videoEl.src = URL.createObjectURL(file);
+  videoEl.onloadedmetadata = () => {
+    refreshVideoInfo();
+    videoInfo.classList.add('visible');
+    extractedFrames = [];
+    previewStrip.innerHTML = '';
+    previewStrip.classList.remove('visible');
+    setStatus('');
+    setState('ready');
+  };
+}
+
+function getValidInterval() {
+  const allowed = [0.5, 1, 1.5, 2, 5, 10];
+  const selected = document.querySelector('input[name="interval"]:checked');
+  const parsed = parseFloat(selected ? selected.value : '1.5');
+  return allowed.includes(parsed) ? parsed : 1.5;
+}
+
+function getFrameCount(duration) {
+  return Math.max(2, Math.floor(duration / getValidInterval()));
+}
+
+function refreshVideoInfo() {
+  if (!selectedVideoFile || !videoEl.duration || Number.isNaN(videoEl.duration)) return;
+  const dur = videoEl.duration;
+  const n = getFrameCount(dur);
+  infoName.textContent = selectedVideoFile.name.length > 28 ? selectedVideoFile.name.slice(0, 25) + '…' : selectedVideoFile.name;
+  infoDur.textContent = dur.toFixed(1) + 's';
+  infoCount.textContent = n + ' frames';
+}
+
+function setState(s) {
+  state = s;
+  if (s === 'idle')      { btnRun.disabled = true;  btnRun.textContent = '▶ Extract frames'; }
+  if (s === 'ready')     { btnRun.disabled = false; btnRun.textContent = '▶ Extract frames'; }
+  if (s === 'extracted') { btnRun.disabled = false; btnRun.textContent = '▶ Insert into Figma'; }
+}
+
+btnRun.onclick = async () => {
+  if (state === 'ready')          await doExtract();
+  else if (state === 'extracted') await doInsert();
+};
+
+btnReset.onclick = () => {
+  videoEl.src = '';
+  selectedVideoFile = null;
+  extractedFrames = [];
+  videoInfo.classList.remove('visible');
+  progressWrap.classList.remove('visible');
+  previewStrip.classList.remove('visible');
+  previewStrip.innerHTML = '';
+  progressBar.style.width = '0%';
+  fileInput.value = '';
+  setStatus('');
+  setState('idle');
+};
+
+async function doExtract() {
+  if (isProcessing) return;
+  isProcessing = true;
+  const dur = videoEl.duration;
+  const interval = getValidInterval();
+  const n = getFrameCount(dur);
+  const timestamps = Array.from({ length: n }, (_, i) => interval/2 + i * interval);
+  infoCount.textContent = n + ' frames';
+
+  extractedFrames = [];
+  previewStrip.innerHTML = '';
+  previewStrip.classList.remove('visible');
+  progressLbl.textContent = 'Extracting frames...';
+  progressBar.style.width = '0%';
+  progressWrap.classList.add('visible');
+  btnRun.disabled = true;
+  setStatus('');
+
+  for (let i = 0; i < timestamps.length; i++) {
+    const dataUrl = await seekAndCapture(timestamps[i]);
+
+    const b64    = dataUrl.split(',')[1];
+    const binary = atob(b64);
+    const bytes  = new Array(binary.length);
+    for (let j = 0; j < binary.length; j++) bytes[j] = binary.charCodeAt(j);
+
+    extractedFrames.push({ dataUrl, bytes });
+
+    const img = document.createElement('img');
+    img.src = dataUrl;
+    previewStrip.appendChild(img);
+    previewStrip.classList.add('visible');
+
+    progressBar.style.width = Math.round(((i + 1) / timestamps.length) * 100) + '%';
+    progressTxt.textContent = `${i + 1} / ${timestamps.length}`;
+  }
+
+  progressWrap.classList.remove('visible');
+  setStatus(`✓ ${extractedFrames.length} frames extracted`, 'ok');
+  setState('extracted');
+  isProcessing = false;
+}
+
+function seekAndCapture(time) {
+  return new Promise(resolve => {
+    videoEl.currentTime = Math.min(time, videoEl.duration - 0.05);
+    videoEl.onseeked = () => {
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.92));
+    };
+  });
+}
+
+async function doInsert() {
+  if (isProcessing) return;
+  isProcessing = true;
+  btnRun.disabled = true;
+  progressLbl.textContent = 'Inserting into Figma...';
+  progressBar.style.width = '0%';
+  progressTxt.textContent = `0 / ${extractedFrames.length}`;
+  progressWrap.classList.add('visible');
+  setStatus('');
+
+  parent.postMessage({
+    pluginMessage: {
+      type: 'insert-start',
+      total: extractedFrames.length,
+      width: videoEl.videoWidth,
+      height: videoEl.videoHeight
+    }
+  }, '*');
+  await sleep(30);
+
+  for (let i = 0; i < extractedFrames.length; i++) {
+    parent.postMessage({
+      pluginMessage: { type: 'insert-frame', index: i, bytes: extractedFrames[i].bytes }
+    }, '*');
+
+    progressBar.style.width = Math.round(((i + 1) / extractedFrames.length) * 100) + '%';
+    progressTxt.textContent = `${i + 1} / ${extractedFrames.length}`;
+    await sleep(80);
+  }
+
+  parent.postMessage({ pluginMessage: { type: 'insert-done' } }, '*');
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+window.onmessage = (e) => {
+  const msg = e.data.pluginMessage;
+  if (!msg) return;
+  if (msg.type === 'done') {
+    progressWrap.classList.remove('visible');
+    setStatus(`✓ ${msg.count} frames on canvas`, 'ok');
+    btnRun.disabled = false;
+    isProcessing = false;
+  }
+};
+
+function setStatus(msg, type = '') {
+  statusEl.textContent = msg;
+  statusEl.className = type;
+}
+</script>
+</body>
+</html>
