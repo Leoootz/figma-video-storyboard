@@ -1,5 +1,7 @@
 # Storyboard — Video to Frames (Figma Plugin)
 
+![Storyboard plugin preview](assets/vts.png)
+
 Extract frames from a video (1 every 1.5s) and place them on your Figma canvas in 9:16 story format.
 
 ## Installation
