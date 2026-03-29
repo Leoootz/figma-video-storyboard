@@ -2,7 +2,7 @@
 
 ![Storyboard plugin preview](assets/vts.png)
 
-Extract frames from a video at a chosen interval and place them on your Figma canvas in 9:16 story format.
+Extract frames from a video at a chosen interval and place them on your Figma canvas.
 
 ---
 
